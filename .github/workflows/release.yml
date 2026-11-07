@@ -1,11 +1,13 @@
 name: Release
+run-name: Release ${{ github.ref_type == 'tag' && github.ref_name || inputs.version || 'versionName from libs.versions.toml' }}
 
 # Publishes the Windows app, only when asked: merges into master publish nothing, so they cost no
 # build of their own.
 #
 # - "Run workflow" in the Actions tab, on master, publishes a pre-release, v<version>-beta.<n>,
-#   where <version> is versionName in gradle/libs.versions.toml and <n> follows the last beta of
-#   that version. Installed apps find it through the update check in Settings.
+#   where <version> is the version entered in the form, or versionName in gradle/libs.versions.toml
+#   when it is left empty, and <n> follows the last beta of that version. Installed apps find it
+#   through the update check in Settings.
 # - Pushing a tag v<version> publishes that version as a full release. A tag with a suffix, such as
 #   v4.8.0-rc.1, makes a pre-release. After a full release, raise versionName before the next beta:
 #   it would otherwise come before the release itself.
@@ -16,6 +18,11 @@ name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release, such as 4.8.1 (publishes v<version>-beta.<n>). Leave empty to use versionName in gradle/libs.versions.toml. The run summary shows the current version and the last release.'
+        required: false
+        default: ''
   push:
     tags: [ 'v*' ]
 
@@ -46,8 +53,22 @@ jobs:
     - name: Choose the version
       env:
         GH_TOKEN: ${{ github.token }}
+        INPUT_VERSION: ${{ inputs.version }}
       run: |
-        version=$(grep -E '^versionName' gradle/libs.versions.toml | cut -d'"' -f2)
+        current=$(grep -E '^versionName' gradle/libs.versions.toml | cut -d'"' -f2)
+        latest=$(gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --limit 50 --json tagName -q '.[].tagName' | grep -E '^v[0-9]' | head -1 || true)
+        {
+          echo "### Versions"
+          echo "- versionName in gradle/libs.versions.toml: \`$current\`"
+          echo "- Last app release: \`${latest:-none}\`"
+          echo "- Version asked for in the run: \`${INPUT_VERSION:-(empty, uses versionName)}\`"
+        } >> "$GITHUB_STEP_SUMMARY"
+        version=${INPUT_VERSION:-$current}
+        version=${version#v}
+        if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "::error::Version '$version' is not of the form 1.2.3"
+          exit 1
+        fi
         if [[ "$GITHUB_REF_TYPE" == tag ]]; then
           tag=$GITHUB_REF_NAME
           if [[ "${tag#v}" != "$version" && "${tag#v}" != "$version-"* ]]; then
@@ -56,7 +77,7 @@ jobs:
           fi
         else
           if git ls-remote --exit-code --tags origin "refs/tags/v$version" > /dev/null; then
-            echo "::error::v$version is already released. Raise versionName in gradle/libs.versions.toml so the next betas come after it"
+            echo "::error::v$version is already released. Enter a higher version when you run the workflow, or raise versionName in gradle/libs.versions.toml, so the next betas come after it"
             exit 1
           fi
           last=$(git ls-remote --tags origin "refs/tags/v$version-beta.*" | sed -E 's|.*/v[^-]*-beta\.([0-9]+)$|\1|' | { grep -E '^[0-9]+$' || true; } | sort -n | tail -1)
@@ -65,6 +86,7 @@ jobs:
         # The changes listed in the notes start from the last app release
         previous=$(gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --limit 50 --json tagName -q '.[].tagName' | grep -E '^v[0-9]' | grep -vx "$tag" | head -1 || true)
         echo "Releasing $tag, changes since ${previous:-the start}"
+        echo "- Publishing: \`$tag\`" >> "$GITHUB_STEP_SUMMARY"
         echo "TAG=$tag" >> "$GITHUB_ENV"
         echo "PREVIOUS=$previous" >> "$GITHUB_ENV"
 
