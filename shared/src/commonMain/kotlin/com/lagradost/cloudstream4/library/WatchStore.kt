@@ -154,14 +154,14 @@ object WatchIds {
         is AnimeLoadResponse -> buildMap {
             for ((dub, episodes) in response.episodes) for ((index, episode) in episodes.withIndex()) {
                 val number = episode.episode ?: (index + 1)
-                putIfAbsent(episode, titleId + number + dubIndex(dub) * 1_000_000 + (episode.season?.times(10_000) ?: 0))
+                if (episode !in this) put(episode, titleId + number + dubIndex(dub) * 1_000_000 + (episode.season?.times(10_000) ?: 0))
             }
         }
         is TvSeriesLoadResponse -> buildMap {
             val sorted = response.episodes.sortedBy { (it.season?.times(10_000) ?: 0) + (it.episode ?: 0) }
             for ((index, episode) in sorted.withIndex()) {
                 val number = episode.episode ?: (index + 1)
-                putIfAbsent(episode, titleId + (episode.season?.times(100_000) ?: 0) + number + 1)
+                if (episode !in this) put(episode, titleId + (episode.season?.times(100_000) ?: 0) + number + 1)
             }
         }
         else -> emptyMap()
