@@ -75,7 +75,7 @@ compileSdk = "37"
 targetSdk = "36"
 
 versionCode = "68"
-versionName = "4.8.0"
+versionName = "4.8.1"
 
 [libraries]
 haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
