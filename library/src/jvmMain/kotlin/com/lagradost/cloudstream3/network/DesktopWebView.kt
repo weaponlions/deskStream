@@ -1,13 +1,15 @@
 package com.lagradost.cloudstream3.network
 
+import com.lagradost.cloudstream3.InternalAPI
 import okhttp3.Request
 import okhttp3.Response
 
 /**
  * The browser behind WebViewResolver on desktop, which has no Android WebView. The desktop app
  * installs one in [DesktopWebView.engine]; without one, WebViewResolver finds nothing and requests
- * go through unchanged.
+ * go through unchanged. Internal: only the desktop app implements it, plugins never see it.
  */
+@InternalAPI
 interface DesktopWebView {
     /** The browser's own user agent, which cookies it earned only work with */
     val userAgent: String?
