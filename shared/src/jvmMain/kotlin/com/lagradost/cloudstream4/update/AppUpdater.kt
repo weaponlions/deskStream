@@ -106,7 +106,7 @@ class AppUpdater(
     }
 
     companion object {
-        const val REPOSITORY = "harsh-pockt/cloudstream"
+        const val REPOSITORY = "weaponlions/deskStream"
         /**
          * Every release, newest first. Not releases/latest, which leaves out pre-releases, and the app is
          * released as pre-releases for now
